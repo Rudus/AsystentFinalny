@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "AsystentFinalny",
+    "slug": "AsystentFinalny",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.twojlogin.asystentfinalny"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "permissions": [
+              "android.permission.USE_FULL_SCREEN_INTENT",
+              "android.permission.VIBRATE",
+              "android.permission.SCHEDULE_EXACT_ALARM"
+            ],
+            "mainActivity": {
+              "showWhenLocked": true,
+              "turnScreenOn": true
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7ab0376d-8cb6-4e83-ba7a-8158ce7416e6"
+      }
+    }
+  }
+}
