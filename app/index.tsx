@@ -12,19 +12,9 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import * as Notifications from 'expo-notifications';
+// KROK 1: Importujemy now?, pot??n? bibliotek? Notifee
+import notifee, { TimestampTrigger, TriggerType, AndroidImportance } from '@notifee/react-native';
 
-// Konfiguracja, jak powiadomienie ma si? zachowywa?, gdy aplikacja jest aktywna
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-// Definicja dedykowanego kana?u dla naszych alarm¨®w
-const ALARM_CHANNEL_ID = 'alarm_channel';
 
 const CustomButton = ({ title, onPress, style, textStyle }) => (
   <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
@@ -47,26 +37,16 @@ const App = () => {
   const moods = ['Produktywny', 'Kreatywny', 'Spokojny'];
   const moodEmojis = {'Produktywny': '??', 'Kreatywny': '??', 'Spokojny': '??'};
   
-  const setupNotifications = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('B??d uprawnie¨½', 'Nie uda?o si? uzyska? uprawnie¨½ do wysy?ania powiadomie¨½!');
-      return;
+  // Funkcja prosi o uprawnienia dla Notifee
+  async function requestNotifeePermissions() {
+    // Na nowszych wersjach Androida trzeba poprosi? o pozwolenie na wysy?anie powiadomie¨½
+    if(Platform.OS === 'android' && Platform.Version >= 33) {
+        await notifee.requestPermission();
     }
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
-        name: 'Alarmy Asystenta',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250, 250, 250],
-        sound: 'default',
-        lightColor: '#FF231F7C',
-        bypassDnd: true,
-      });
-    }
-  };
+  }
 
   useEffect(() => {
-    setupNotifications();
+    requestNotifeePermissions();
     generatePlan();
   }, []);
 
@@ -78,11 +58,8 @@ const App = () => {
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`B??d API: ${response.statusText}`);
     const result = await response.json();
-    if (result.candidates && result.candidates.length > 0) {
-      return result.candidates[0].content.parts[0].text;
-    } else {
-      throw new Error('Otrzymano nieprawid?ow? odpowied? od Gemini.');
-    }
+    if (result.candidates && result.candidates.length > 0) return result.candidates[0].content.parts[0].text;
+    else throw new Error('Otrzymano nieprawid?ow? odpowied? od Gemini.');
   };
 
   const handleSetAlarm = async () => {
@@ -93,53 +70,51 @@ const App = () => {
       return;
     }
 
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    
-    // --- SONDY DEBUGUJ?CE ---
     const now = new Date();
     const triggerDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
-
-    console.log("--- DEBUGOWANIE ALARMU ---");
-    console.log(`[1] Aktualny czas (now): ${now.toString()}`);
-    console.log(`[2] Czas alarmu na dzi? (triggerDate): ${triggerDate.toString()}`);
-
     if (triggerDate <= now) {
       triggerDate.setDate(triggerDate.getDate() + 1);
-      console.log(`[3] Czas by? w przesz?o?ci, ustawiam na jutro: ${triggerDate.toString()}`);
-    } else {
-      console.log("[3] Czas jest w przysz?o?ci, nie zmieniam daty.");
-    }
-    
-    const secondsUntilTrigger = Math.round((triggerDate.getTime() - now.getTime()) / 1000);
-
-    console.log(`[4] Obliczona liczba sekund do alarmu: ${secondsUntilTrigger}`);
-    console.log("--------------------------");
-    // -------------------------
-
-    if (secondsUntilTrigger <= 0) {
-      Alert.alert('B??d debugowania', `Obliczony czas do alarmu to ${secondsUntilTrigger} sekund. Alarm nie zostanie ustawiony.`);
-      return;
     }
     
     try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Poranny Asystent jest gotowy! ??",
-          body: 'Kliknij, aby zobaczy? sw¨®j plan na dzi?!',
-          sound: 'default',
-        },
-        trigger: {
-          seconds: secondsUntilTrigger,
-          channelId: ALARM_CHANNEL_ID,
-        },
+      const trigger: TimestampTrigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: triggerDate.getTime(),
+      };
+
+      const channelId = await notifee.createChannel({
+        id: 'alarm_channel',
+        name: 'Alarmy Aplikacji',
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+        importance: AndroidImportance.HIGH,
       });
+
+      await notifee.cancelAllNotifications();
+
+      await notifee.createTriggerNotification(
+        {
+          title: 'Poranny Asystent jest gotowy! ??',
+          body: 'Kliknij, aby zobaczy? sw¨®j plan na dzi?!',
+          android: {
+            channelId,
+            importance: AndroidImportance.HIGH,
+            fullScreenAction: {
+              id: 'default',
+            },
+          },
+        },
+        trigger,
+      );
+
       const formattedDate = triggerDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
       const formattedTime = triggerDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
       setAlarmMessage(`Alarm ustawiony na: ${formattedDate}, ${formattedTime}`);
-      Alert.alert('Sukces!', `Alarm zosta? pomy?lnie ustawiony.`);
+      Alert.alert('Sukces!', `Prawdziwy alarm pe?noekranowy zosta? ustawiony.`);
     } catch (e) {
       console.error(e);
-      Alert.alert('B??d', 'Wyst?pi? b??d podczas ustawiania alarmu.');
+      Alert.alert('B??d', 'Wyst?pi? b??d podczas ustawiania alarmu z Notifee.');
     }
   };
   
