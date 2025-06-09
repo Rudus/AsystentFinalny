@@ -9,7 +9,19 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Platform,
+  Alert,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
+
+// Konfiguracja, jak powiadomienie ma si? zachowywa?, gdy aplikacja jest aktywna
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const CustomButton = ({ title, onPress, style, textStyle }) => (
   <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
@@ -30,29 +42,101 @@ const App = () => {
   const [taskSteps, setTaskSteps] = useState('');
 
   const moods = ['Produktywny', 'Kreatywny', 'Spokojny'];
-  const moodEmojis = {'Produktywny': 'üíª', 'Kreatywny': 'üé®', 'Spokojny': 'üßò'};
+  const moodEmojis = {'Produktywny': '??', 'Kreatywny': '??', 'Spokojny': '??'};
+  
+  // --- ZMIANA: Tworzymy dedykowany kana? dla alarm®Æw ---
+  const ALARM_CHANNEL_ID = 'alarm_channel';
+
+  const registerForPushNotificationsAsync = async () => {
+    if (Platform.OS === 'android') {
+      // Stworzenie dedykowanego kana?u dla alarm®Æw o najwy?szym priorytecie
+      await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
+        name: 'Alarmy Asystenta',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250, 250, 250],
+        sound: 'default', // W przysz?o?ci mo?na doda? w?asny d?wi?k
+        lightColor: '#FF231F7C',
+        bypassDnd: true, // Omi®Ω tryb "Nie przeszkadza?"
+      });
+    }
+
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('B??d uprawnie®Ω', 'Nie uda?o si? uzyska? uprawnie®Ω do wysy?ania powiadomie®Ω!');
+      return false;
+    }
+    return true;
+  }
+
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+    generatePlan();
+  }, []);
+
 
   const callGemini = async (prompt) => {
-    const apiKey = "";
+    const apiKey = "AIzaSyB-EGE7jFgFFO2SJLwz6o4rJw7gkSAYsiI"; 
+    if (apiKey === "YOUR_API_KEY_HERE") {
+        throw new Error("API Key not provided.");
+    }
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    if (!response.ok) throw new Error(`B≈ÇƒÖd API: ${response.statusText}`);
+    if (!response.ok) throw new Error(`B??d API: ${response.statusText}`);
     const result = await response.json();
-    if (result.candidates && result.candidates[0].content.parts.length > 0) {
+    if (result.candidates && result.candidates.length > 0) {
         return result.candidates[0].content.parts[0].text;
     } else {
-        throw new Error('Otrzymano nieprawid≈ÇowƒÖ odpowied≈∫ od Gemini.');
+        throw new Error('Otrzymano nieprawid?ow? odpowied? od Gemini.');
     }
   };
 
-  const handleSetAlarm = () => {
-    setAlarmMessage(`Alarm symulowany dla ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`);
+  const handleSetAlarm = async () => {
+    const h = parseInt(hour, 10);
+    const m = parseInt(minute, 10);
+    if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
+      setAlarmMessage('Wprowad? poprawn? godzin? (HH:MM).');
+      return;
+    }
+
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    const now = new Date();
+    const triggerDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+
+    if (triggerDate < now) {
+        triggerDate.setDate(triggerDate.getDate() + 1);
+    }
+    
+    try {
+        // --- ZMIANA: Planujemy powiadomienie w naszym nowym, specjalnym kanale ---
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: "Poranny Asystent jest gotowy! ??",
+                body: 'Kliknij, aby zobaczy? sw®Æj plan na dzi?!',
+                sound: 'default',
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                sticky: true, // "Przykleja" powiadomienie, utrudniaj?c jego przypadkowe odrzucenie
+                vibrate: [0, 250, 250, 250, 250, 250], // Wibracja specyficzna dla alarmu
+            },
+            trigger: {
+                channelId: ALARM_CHANNEL_ID, // U?yj dedykowanego kana?u
+                date: triggerDate,
+            }
+        });
+        const formattedDate = triggerDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+        const formattedTime = triggerDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        setAlarmMessage(`Alarm ustawiony na: ${formattedDate}, ${formattedTime}`);
+        Alert.alert('Sukces!', `Alarm pe?noekranowy zosta? pomy?lnie ustawiony.`);
+    } catch (e) {
+        console.error(e);
+        Alert.alert('B??d', 'Wyst?pi? b??d podczas ustawiania alarmu.');
+    }
   };
   
   const getMockCalendarEvents = () => {
     return Promise.resolve([
-        { title: 'Spotkanie z zespo≈Çem marketingowym' },
+        { title: 'Spotkanie z zespo?em marketingowym' },
         { title: 'Wizyta u dentysty' },
     ]);
   };
@@ -63,11 +147,11 @@ const App = () => {
     try {
         const events = await getMockCalendarEvents();
         const eventsString = events.map(e => `- ${e.title}`).join('\n');
-        const prompt = `Jeste≈õ moim osobistym asystentem. M√≥j nastr√≥j na dzi≈õ to: "${selectedMood}". Na podstawie poni≈ºszych wydarze≈Ñ z kalendarza, stw√≥rz dla mnie motywujƒÖcy i dobrze zorganizowany plan. M√≥w do mnie bezpo≈õrednio. Podziel plan na sekcje. BƒÖd≈∫ zwiƒôz≈Çy, dodaj jedno zdanie motywacyjne na poczƒÖtek. WA≈ªNE: Ka≈ºdƒÖ pozycjƒô z kalendarza oznacz jako '[ZADANIE]', np. 'Spotkanie z zespo≈Çem marketingowym [ZADANIE]'. Oto wydarzenia:\n${eventsString}`;
+        const prompt = `Jeste? moim osobistym asystentem. M®Æj nastr®Æj na dzi? to: "${selectedMood}". Na podstawie poni?szych wydarze®Ω z kalendarza, stw®Ærz dla mnie motywuj?cy i dobrze zorganizowany plan. M®Æw do mnie bezpo?rednio. Podziel plan na sekcje. B?d? zwi?z?y, dodaj jedno zdanie motywacyjne na pocz?tek. WA?NE: Ka?d? pozycj? z kalendarza oznacz jako '[ZADANIE]', np. 'Spotkanie z zespo?em marketingowym [ZADANIE]'. Oto wydarzenia:\n${eventsString}`;
         const textResponse = await callGemini(prompt);
         setPlan(textResponse);
     } catch (error) {
-      setPlan('Przepraszam, wystƒÖpi≈Ç b≈ÇƒÖd podczas generowania Twojego planu dnia.');
+      setPlan(`Przepraszam, wyst?pi? b??d: ${error.message}`);
     } finally {
       setIsLoadingPlan(false);
     }
@@ -79,11 +163,11 @@ const App = () => {
     setIsLoadingTask(true);
     setTaskSteps('');
     try {
-        const prompt = `Jeste≈õ ekspertem od produktywno≈õci. Moje g≈Ç√≥wne zadanie to: "${taskTitle}". Podziel to zadanie na 3 do 5 mniejszych, konkretnych i wykonalnych pod-zada≈Ñ. Przedstaw je w formie listy punktowanej.`;
+        const prompt = `Jeste? ekspertem od produktywno?ci. Moje g?®Æwne zadanie to: "${taskTitle}". Podziel to zadanie na 3 do 5 mniejszych, konkretnych i wykonalnych pod-zada®Ω. Przedstaw je w formie listy punktowanej.`;
         const textResponse = await callGemini(prompt);
         setTaskSteps(textResponse);
     } catch(error) {
-        setTaskSteps('Przepraszam, nie uda≈Ço siƒô podzieliƒá zadania na kroki.');
+        setTaskSteps(`Wyst?pi? b??d: ${error.message}`);
     } finally {
         setIsLoadingTask(false);
     }
@@ -94,57 +178,46 @@ const App = () => {
     return plan.split('\n').map((line, index) => {
       const isTask = line.includes('[ZADANIE]');
       const taskTitle = isTask ? line.replace('[ZADANIE]', '').trim() : '';
-
-      if (isTask) {
-        return (
-          <TouchableOpacity key={index} onPress={() => breakDownTask(taskTitle)}>
-            <Text style={styles.taskItem}>‚ú® {taskTitle}</Text>
-          </TouchableOpacity>
-        );
-      }
+      if (isTask) return (<TouchableOpacity key={index} onPress={() => breakDownTask(taskTitle)}><Text style={styles.taskItem}>? {taskTitle}</Text></TouchableOpacity>);
       if (line.startsWith('## ')) return <Text key={index} style={styles.planSubtitle}>{line.replace('## ', '')}</Text>
-      if (line.startsWith('* ')) return <Text key={index} style={styles.planListItem}>‚Ä¢ {line.replace('* ', '')}</Text>
+      if (line.startsWith('* ')) return <Text key={index} style={styles.planListItem}>? {line.replace('* ', '')}</Text>
       return <Text key={index} style={styles.planText}>{line}</Text>;
     });
   };
 
   useEffect(() => {
-    generatePlan();
+      generatePlan();
   }, [selectedMood]);
+
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.header}>Poranny Asystent</Text>
         <View style={styles.card}>
-            <Text style={styles.cardTitle}>Ustaw godzinƒô pobudki</Text>
+            <Text style={styles.cardTitle}>Ustaw godzin? pobudki</Text>
             <View style={styles.timeInputContainer}>
                 <TextInput style={styles.timeInput} value={hour} onChangeText={setHour} keyboardType="number-pad" maxLength={2} />
                 <Text style={styles.timeSeparator}>:</Text>
                 <TextInput style={styles.timeInput} value={minute} onChangeText={setMinute} keyboardType="number-pad" maxLength={2} />
             </View>
-            <CustomButton title="Zapisz godzinƒô" onPress={handleSetAlarm} />
+            <CustomButton title="Zapisz godzin?" onPress={handleSetAlarm} />
             <Text style={styles.alarmMessage}>{alarmMessage}</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>‚ú® Ustal Nastr√≥j Dnia</Text>
+          <Text style={styles.cardTitle}>? Ustal Nastr®Æj Dnia</Text>
           <View style={styles.moodSelector}>
             {moods.map(mood => (
-              <TouchableOpacity
-                key={mood}
-                style={[styles.moodButton, selectedMood === mood && styles.moodButtonSelected]}
-                onPress={() => setSelectedMood(mood)}>
-                <Text style={[styles.moodButtonText, selectedMood === mood && styles.moodButtonTextSelected]}>
-                  {mood} {moodEmojis[mood]}
-                </Text>
+              <TouchableOpacity key={mood} style={[styles.moodButton, selectedMood === mood && styles.moodButtonSelected]} onPress={() => setSelectedMood(mood)}>
+                <Text style={[styles.moodButtonText, selectedMood === mood && styles.moodButtonTextSelected]}>{mood} {moodEmojis[mood]}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
         <View style={styles.card}>
             <View style={styles.planHeader}>
-                <Text style={styles.cardTitle}>Tw√≥j Plan Dnia</Text>
-                <CustomButton title="Od≈õwie≈º" onPress={generatePlan} style={styles.refreshButton} textStyle={styles.refreshButtonText}/>
+                <Text style={styles.cardTitle}>Tw®Æj Plan Dnia</Text>
+                <CustomButton title="Od?wie?" onPress={generatePlan} style={styles.refreshButton} textStyle={styles.refreshButtonText}/>
             </View>
             {isLoadingPlan ? <ActivityIndicator size="large" color="#3498db" style={styles.loader} /> : renderPlan()}
         </View>
@@ -152,9 +225,9 @@ const App = () => {
       <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
         <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-                <Text style={styles.cardTitle}>‚ú® Podziel zadanie na kroki</Text>
+                <Text style={styles.cardTitle}>? Podziel zadanie na kroki</Text>
                 <Text style={styles.modalTaskTitle}>{currentTask}</Text>
-                {isLoadingTask ? <ActivityIndicator size="large" color="#3498db" style={styles.loader} /> : <Text style={styles.planText}>{taskSteps.replace(/\* /g, '‚Ä¢ ')}</Text>}
+                {isLoadingTask ? <ActivityIndicator size="large" color="#3498db" style={styles.loader} /> : <Text style={styles.planText}>{taskSteps.replace(/\* /g, '? ')}</Text>}
                 <CustomButton title="Zamknij" onPress={() => setIsModalVisible(false)} style={{marginTop: 20}}/>
             </View>
         </View>
