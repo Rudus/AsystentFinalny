@@ -23,6 +23,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Definicja dedykowanego kana?u dla naszych alarm車w
+const ALARM_CHANNEL_ID = 'alarm_channel';
+
 const CustomButton = ({ title, onPress, style, textStyle }) => (
   <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
     <Text style={[styles.buttonText, textStyle]}>{title}</Text>
@@ -44,50 +47,41 @@ const App = () => {
   const moods = ['Produktywny', 'Kreatywny', 'Spokojny'];
   const moodEmojis = {'Produktywny': '??', 'Kreatywny': '??', 'Spokojny': '??'};
   
-  // --- ZMIANA: Tworzymy dedykowany kana? dla alarm車w ---
-  const ALARM_CHANNEL_ID = 'alarm_channel';
-
-  const registerForPushNotificationsAsync = async () => {
+  const setupNotifications = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('B??d uprawnie里', 'Nie uda?o si? uzyska? uprawnie里 do wysy?ania powiadomie里!');
+      return;
+    }
     if (Platform.OS === 'android') {
-      // Stworzenie dedykowanego kana?u dla alarm車w o najwy?szym priorytecie
       await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
         name: 'Alarmy Asystenta',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250, 250, 250],
-        sound: 'default', // W przysz?o?ci mo?na doda? w?asny d?wi?k
+        sound: 'default',
         lightColor: '#FF231F7C',
-        bypassDnd: true, // Omi里 tryb "Nie przeszkadza?"
+        bypassDnd: true,
       });
     }
-
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('B??d uprawnie里', 'Nie uda?o si? uzyska? uprawnie里 do wysy?ania powiadomie里!');
-      return false;
-    }
-    return true;
-  }
+  };
 
   useEffect(() => {
-    registerForPushNotificationsAsync();
+    setupNotifications();
     generatePlan();
   }, []);
 
-
   const callGemini = async (prompt) => {
     const apiKey = "AIzaSyB-EGE7jFgFFO2SJLwz6o4rJw7gkSAYsiI"; 
-    if (apiKey === "YOUR_API_KEY_HERE") {
-        throw new Error("API Key not provided.");
-    }
+    if (apiKey === "YOUR_API_KEY_HERE") throw new Error("API Key not provided.");
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (!response.ok) throw new Error(`B??d API: ${response.statusText}`);
     const result = await response.json();
     if (result.candidates && result.candidates.length > 0) {
-        return result.candidates[0].content.parts[0].text;
+      return result.candidates[0].content.parts[0].text;
     } else {
-        throw new Error('Otrzymano nieprawid?ow? odpowied? od Gemini.');
+      throw new Error('Otrzymano nieprawid?ow? odpowied? od Gemini.');
     }
   };
 
@@ -95,61 +89,73 @@ const App = () => {
     const h = parseInt(hour, 10);
     const m = parseInt(minute, 10);
     if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
-      setAlarmMessage('Wprowad? poprawn? godzin? (HH:MM).');
+      Alert.alert('B??dna godzina', 'Prosz? wprowadzi? poprawn? godzin? (HH:MM).');
       return;
     }
 
     await Notifications.cancelAllScheduledNotificationsAsync();
-
+    
+    // --- SONDY DEBUGUJ?CE ---
     const now = new Date();
     const triggerDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
 
-    if (triggerDate < now) {
-        triggerDate.setDate(triggerDate.getDate() + 1);
+    console.log("--- DEBUGOWANIE ALARMU ---");
+    console.log(`[1] Aktualny czas (now): ${now.toString()}`);
+    console.log(`[2] Czas alarmu na dzi? (triggerDate): ${triggerDate.toString()}`);
+
+    if (triggerDate <= now) {
+      triggerDate.setDate(triggerDate.getDate() + 1);
+      console.log(`[3] Czas by? w przesz?o?ci, ustawiam na jutro: ${triggerDate.toString()}`);
+    } else {
+      console.log("[3] Czas jest w przysz?o?ci, nie zmieniam daty.");
+    }
+    
+    const secondsUntilTrigger = Math.round((triggerDate.getTime() - now.getTime()) / 1000);
+
+    console.log(`[4] Obliczona liczba sekund do alarmu: ${secondsUntilTrigger}`);
+    console.log("--------------------------");
+    // -------------------------
+
+    if (secondsUntilTrigger <= 0) {
+      Alert.alert('B??d debugowania', `Obliczony czas do alarmu to ${secondsUntilTrigger} sekund. Alarm nie zostanie ustawiony.`);
+      return;
     }
     
     try {
-        // --- ZMIANA: Planujemy powiadomienie w naszym nowym, specjalnym kanale ---
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: "Poranny Asystent jest gotowy! ??",
-                body: 'Kliknij, aby zobaczy? sw車j plan na dzi?!',
-                sound: 'default',
-                priority: Notifications.AndroidNotificationPriority.MAX,
-                sticky: true, // "Przykleja" powiadomienie, utrudniaj?c jego przypadkowe odrzucenie
-                vibrate: [0, 250, 250, 250, 250, 250], // Wibracja specyficzna dla alarmu
-            },
-            trigger: {
-                channelId: ALARM_CHANNEL_ID, // U?yj dedykowanego kana?u
-                date: triggerDate,
-            }
-        });
-        const formattedDate = triggerDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
-        const formattedTime = triggerDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        setAlarmMessage(`Alarm ustawiony na: ${formattedDate}, ${formattedTime}`);
-        Alert.alert('Sukces!', `Alarm pe?noekranowy zosta? pomy?lnie ustawiony.`);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Poranny Asystent jest gotowy! ??",
+          body: 'Kliknij, aby zobaczy? sw車j plan na dzi?!',
+          sound: 'default',
+        },
+        trigger: {
+          seconds: secondsUntilTrigger,
+          channelId: ALARM_CHANNEL_ID,
+        },
+      });
+      const formattedDate = triggerDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+      const formattedTime = triggerDate.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+      setAlarmMessage(`Alarm ustawiony na: ${formattedDate}, ${formattedTime}`);
+      Alert.alert('Sukces!', `Alarm zosta? pomy?lnie ustawiony.`);
     } catch (e) {
-        console.error(e);
-        Alert.alert('B??d', 'Wyst?pi? b??d podczas ustawiania alarmu.');
+      console.error(e);
+      Alert.alert('B??d', 'Wyst?pi? b??d podczas ustawiania alarmu.');
     }
   };
   
   const getMockCalendarEvents = () => {
-    return Promise.resolve([
-        { title: 'Spotkanie z zespo?em marketingowym' },
-        { title: 'Wizyta u dentysty' },
-    ]);
+    return Promise.resolve([{ title: 'Spotkanie z zespo?em' }, { title: 'Wizyta u dentysty' }]);
   };
 
   const generatePlan = async () => {
     setIsLoadingPlan(true);
     setPlan('');
     try {
-        const events = await getMockCalendarEvents();
-        const eventsString = events.map(e => `- ${e.title}`).join('\n');
-        const prompt = `Jeste? moim osobistym asystentem. M車j nastr車j na dzi? to: "${selectedMood}". Na podstawie poni?szych wydarze里 z kalendarza, stw車rz dla mnie motywuj?cy i dobrze zorganizowany plan. M車w do mnie bezpo?rednio. Podziel plan na sekcje. B?d? zwi?z?y, dodaj jedno zdanie motywacyjne na pocz?tek. WA?NE: Ka?d? pozycj? z kalendarza oznacz jako '[ZADANIE]', np. 'Spotkanie z zespo?em marketingowym [ZADANIE]'. Oto wydarzenia:\n${eventsString}`;
-        const textResponse = await callGemini(prompt);
-        setPlan(textResponse);
+      const events = await getMockCalendarEvents();
+      const eventsString = events.map(e => `- ${e.title}`).join('\n');
+      const prompt = `Jeste? moim osobistym asystentem. M車j nastr車j na dzi? to: "${selectedMood}". Na podstawie poni?szych wydarze里 z kalendarza, stw車rz dla mnie motywuj?cy i dobrze zorganizowany plan. M車w do mnie bezpo?rednio. Podziel plan na sekcje. B?d? zwi?z?y, dodaj jedno zdanie motywacyjne. WA?NE: Ka?d? pozycj? z kalendarza oznacz jako '[ZADANIE]', np. 'Spotkanie z zespo?em [ZADANIE]'. Oto wydarzenia:\n${eventsString}`;
+      const textResponse = await callGemini(prompt);
+      setPlan(textResponse);
     } catch (error) {
       setPlan(`Przepraszam, wyst?pi? b??d: ${error.message}`);
     } finally {
@@ -163,13 +169,13 @@ const App = () => {
     setIsLoadingTask(true);
     setTaskSteps('');
     try {
-        const prompt = `Jeste? ekspertem od produktywno?ci. Moje g?車wne zadanie to: "${taskTitle}". Podziel to zadanie na 3 do 5 mniejszych, konkretnych i wykonalnych pod-zada里. Przedstaw je w formie listy punktowanej.`;
-        const textResponse = await callGemini(prompt);
-        setTaskSteps(textResponse);
+      const prompt = `Jeste? ekspertem od produktywno?ci. Moje g?車wne zadanie to: "${taskTitle}". Podziel to zadanie na 3 do 5 mniejszych, konkretnych i wykonalnych pod-zada里. Przedstaw je w formie listy punktowanej.`;
+      const textResponse = await callGemini(prompt);
+      setTaskSteps(textResponse);
     } catch(error) {
-        setTaskSteps(`Wyst?pi? b??d: ${error.message}`);
+      setTaskSteps(`Wyst?pi? b??d: ${error.message}`);
     } finally {
-        setIsLoadingTask(false);
+      setIsLoadingTask(false);
     }
   };
 
@@ -186,7 +192,7 @@ const App = () => {
   };
 
   useEffect(() => {
-      generatePlan();
+    generatePlan();
   }, [selectedMood]);
 
 
