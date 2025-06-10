@@ -1,135 +1,146 @@
-import React, { useState, useEffect } from 'react';
-import {
-  SafeAreaView,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  TextInput,
-  Platform,
-  Alert,
-  LayoutAnimation,
-  UIManager,
-} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, UIManager, LayoutAnimation, AppState } from 'react-native';
+import { useFonts, JosefinSans_400Regular, JosefinSans_600SemiBold, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans';
 
-import { Timeline } from '../components/Timeline';
+import { styles } from '../styles.js';
+import { TimeSetterWidget } from '../components/TimeSetterWidget';
+import { DateWidget } from '../components/DateWidget';
+import { TimelineWidget } from '../components/TimelineWidget';
+import { CalendarWidget } from '../components/CalendarWidget';
+import { MajordomoModal } from '../components/MajordomoModal';
 import { EditEventModal } from '../components/EditEventModal';
 import { useCalendar } from '../hooks/useCalendar';
-import { styles } from '../styles'; // Importujemy style z osobnego pliku
+import { useSettings } from '../hooks/useSettings';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const CustomButton = ({ title, onPress, style, textStyle }) => (
-  <TouchableOpacity style={[styles.button, style]} onPress={onPress}>
-    <Text style={[styles.buttonText, textStyle]}>{title}</Text>
-  </TouchableOpacity>
-);
+export default function AppScreen() {
+  let [fontsLoaded] = useFonts({
+    JosefinSans_400Regular,
+    JosefinSans_600SemiBold,
+    JosefinSans_700Bold,
+  });
 
-export default function App() {
-  const [hour, setHour] = useState('07');
-  const [minute, setMinute] = useState('30');
-  const [selectedMood, setSelectedMood] = useState('Produktywny');
-  const [isTimeSetterVisible, setIsTimeSetterVisible] = useState(true);
+  const { settings, isLoading: isLoadingSettings, saveSettings } = useSettings();
+  const { plan, isLoadingPlan, generatePlan, saveEvent } = useCalendar();
 
-  const { plan, isLoadingPlan, generatePlan } = useCalendar(selectedMood);
-
-  // Stany dla modala edycji
+  const [isMajordomoVisible, setIsMajordomoVisible] = useState(true);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [eventToEdit, setEventToEdit] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  const handleSetAlarm = () => {
-    // Tutaj w przyszłości będzie logika powiadomień
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        generatePlan();
+      }
+    });
+    return () => { subscription.remove(); };
+  }, [generatePlan]);
+
+  const handleSetAlarm = (time) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsTimeSetterVisible(false);
+    saveSettings({ ...time, isTimeSetterVisible: false });
   };
 
   const showTimeSetter = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsTimeSetterVisible(true);
+    saveSettings({ isTimeSetterVisible: true });
   };
 
-  const openEditModal = (event, dayKey) => {
-    setEventToEdit({ ...event, dayKey });
-    setIsEditModalVisible(true);
+  const openModal = (mode, data) => {
+      setEventToEdit({ mode, ...data });
+      setIsEditModalVisible(true);
   };
 
-  const handleSaveChanges = (updatedEvent) => {
-    if (!eventToEdit) return;
-
-    // To jest uproszczona logika - w prawdziwej aplikacji
-    // zaktualizowalibyśmy dane w kalendarzu systemowym.
-    // Na razie symulujemy odświeżenie.
-    generatePlan();
-    setIsEditModalVisible(false);
+  const handleSaveEvent = async (eventData) => {
+      const success = await saveEvent(eventData, eventToEdit?.event?.id);
+      if (success) {
+          setIsEditModalVisible(false);
+          setEventToEdit(null);
+          await generatePlan();
+      }
   };
 
-  const moods = ['Produktywny', 'Kreatywny', 'Spokojny'];
-  const moodEmojis = { 'Produktywny': '💻', 'Kreatywny': '🎨', 'Spokojny': '🧘' };
+  const handleDateSelect = (dateKey) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      if (selectedDate && selectedDate.dateKey === dateKey) {
+          setSelectedDate(null);
+      } else {
+          setSelectedDate({
+              dateKey: dateKey,
+              formatted: new Date(dateKey).toLocaleDateString('pl-PL', {day: 'numeric', month: 'long', weekday: 'long'}).toUpperCase(),
+          });
+      }
+  };
+
+
+  if (!fontsLoaded || isLoadingSettings) {
+    return <View style={styles.centeredView}><ActivityIndicator size="large" color="#fff" /></View>;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {!isTimeSetterVisible && (
+      {settings && !settings.isTimeSetterVisible && (
         <TouchableOpacity style={styles.topRightClock} onPress={showTimeSetter}>
           <Text style={styles.topRightClockIcon}>🕒</Text>
-          <Text style={styles.topRightClockText}>{`${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`}</Text>
+          <Text style={styles.topRightClockText}>{`${settings.hour}:${settings.minute}`}</Text>
         </TouchableOpacity>
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.header}>Poranny Asystent</Text>
-
-        {isTimeSetterVisible && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Ustaw godzinę powiadomienia</Text>
-            <View style={styles.timeInputContainer}>
-              <TextInput style={styles.timeInput} value={hour} onChangeText={setHour} keyboardType="number-pad" maxLength={2} />
-              <Text style={styles.timeSeparator}>:</Text>
-              <TextInput style={styles.timeInput} value={minute} onChangeText={setMinute} keyboardType="number-pad" maxLength={2} />
-            </View>
-            <CustomButton title="Zapisz" onPress={handleSetAlarm} />
-          </View>
+        <TimeSetterWidget
+          isVisible={settings.isTimeSetterVisible}
+          initialHour={settings.hour}
+          initialMinute={settings.minute}
+          onSave={handleSetAlarm}
+        />
+        <DateWidget />
+        <TimelineWidget
+          title="HARMONOGRAM NA DZIŚ"
+          tasks={plan ? plan.today : []}
+          dayKey={plan ? plan.todayKey : ''}
+          onEventPress={(event, day) => openModal('edit', { event, day })}
+          onAddPress={(startTime, day) => openModal('add', { startTime, day })}
+          isToday
+        />
+        <TimelineWidget
+          title="PLAN NA JUTRO"
+          tasks={plan ? plan.tomorrow : []}
+          dayKey={plan ? plan.tomorrowKey : ''}
+          onEventPress={(event, day) => openModal('edit', { event, day })}
+          onAddPress={(startTime, day) => openModal('add', { startTime, day })}
+        />
+        {selectedDate && (
+             <TimelineWidget
+                title={`PLAN NA: ${selectedDate.formatted}`}
+                tasks={plan ? (plan.allForCalendar[selectedDate.dateKey] || []) : []}
+                dayKey={selectedDate.dateKey}
+                onEventPress={(event, day) => openModal('edit', {event, day})}
+                onAddPress={(startTime, day) => openModal('add', {startTime, day})}
+            />
         )}
-
-        <View style={styles.moodSelectorCompact}>
-          <Text style={styles.moodLabel}>Nastrój na dziś:</Text>
-          <View style={styles.moodButtonsContainer}>
-            {moods.map(mood => (
-              <TouchableOpacity key={mood} style={[styles.moodButton, selectedMood === mood && styles.moodButtonSelected]} onPress={() => setSelectedMood(mood)}>
-                <Text style={[styles.moodButtonText, selectedMood === mood && styles.moodButtonTextSelected]}>{moodEmojis[mood]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Twój Plan Dnia</Text>
-          {isLoadingPlan ? (
-            <ActivityIndicator size="large" color="#3498db" />
-          ) : plan ? (
-            <>
-              <Text style={styles.planIntro}>{plan.intro}</Text>
-              <Text style={styles.dayHeader}>Dziś</Text>
-              <Timeline tasks={plan.today} onEventPress={(event) => openEditModal(event, 'today')} />
-              <Text style={styles.dayHeader}>Jutro</Text>
-              <Timeline tasks={plan.tomorrow} onEventPress={(event) => openEditModal(event, 'tomorrow')} />
-            </>
-          ) : (
-            <Text>Nie udało się załadować planu lub nie masz na dziś żadnych wydarzeń.</Text>
-          )}
-        </View>
+        <CalendarWidget
+            events={plan ? plan.allForCalendar : {}}
+            onDateSelect={handleDateSelect}
+            selectedDateKey={selectedDate ? selectedDate.dateKey : null}
+        />
       </ScrollView>
 
+      <MajordomoModal
+        isVisible={isMajordomoVisible}
+        onClose={() => setIsMajordomoVisible(false)}
+        onPlanRequest={(title) => openModal('add', { title, day: plan ? plan.todayKey : '' })}
+      />
       {eventToEdit && (
-        <EditEventModal
-          isVisible={isEditModalVisible}
-          event={eventToEdit}
-          onClose={() => setIsEditModalVisible(false)}
-          onSave={handleSaveChanges}
-        />
+          <EditEventModal
+            isVisible={isEditModalVisible}
+            data={eventToEdit}
+            onClose={() => setIsEditModalVisible(false)}
+            onSave={handleSaveEvent}
+          />
       )}
     </SafeAreaView>
   );
