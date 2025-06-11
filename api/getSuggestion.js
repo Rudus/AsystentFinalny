@@ -43,13 +43,17 @@ export default async function handler(request, response) {
     }
 
     const result = await geminiResponse.json();
-
-    // --- MECHANIZM ZABEZPIECZAJĄCY ---
-    // Próbujemy "oczyścić" odpowiedź, jeśli Gemini dodało niepotrzebne formatowanie
     let rawText = result.candidates[0].content.parts[0].text;
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    const suggestions = JSON.parse(rawText);
+    // --- NOWY, "PANCERNY" MECHANIZM OCZYSZCZANIA ---
+    // Używamy wyrażenia regularnego, aby "wyciąć" z odpowiedzi tylko to, co wygląda jak tablica JSON.
+    const jsonMatch = rawText.match(/(\[.*\])/s);
+    if (!jsonMatch) {
+      throw new Error('Nie znaleziono poprawnego formatu JSON w odpowiedzi od Gemini.');
+    }
+    
+    const cleanedJsonString = jsonMatch[0];
+    const suggestions = JSON.parse(cleanedJsonString);
     response.status(200).json({ suggestions });
 
   } catch (error) {
