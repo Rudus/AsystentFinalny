@@ -11,6 +11,7 @@ import { MajordomoModal } from '../components/MajordomoModal';
 import { EditEventModal } from '../components/EditEventModal';
 import { useCalendar } from '../hooks/useCalendar';
 import { useSettings } from '../hooks/useSettings';
+import { usePersona } from '../hooks/usePersona';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -24,6 +25,7 @@ export default function AppScreen() {
   });
 
   const { settings, isLoading: isLoadingSettings, saveSettings } = useSettings();
+  const { persona, updatePersona } = usePersona();
   const { plan, isLoadingPlan, generatePlan, saveEvent } = useCalendar();
 
   const [isMajordomoVisible, setIsMajordomoVisible] = useState(true);
@@ -133,6 +135,8 @@ export default function AppScreen() {
         isVisible={isMajordomoVisible}
         onClose={() => setIsMajordomoVisible(false)}
         onPlanRequest={(title) => openModal('add', { title, day: plan ? plan.todayKey : '' })}
+        persona={persona} // Przekazujemy personę
+        updatePersona={updatePersona} // Przekazujemy funkcję do aktualizacji
       />
       {eventToEdit && (
           <EditEventModal

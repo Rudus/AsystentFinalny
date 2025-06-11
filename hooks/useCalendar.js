@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'; // POPRAWKA: Dodano import React
+import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import * as Notifications from 'expo-notifications';
 
-export const useCalendar = () => {
+export const useCalendar = (selectedMood = 'Produktywny') => { // Dodajemy selectedMood
   const [plan, setPlan] = useState(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
   const [defaultCalendarId, setDefaultCalendarId] = useState(null);
@@ -23,8 +23,8 @@ export const useCalendar = () => {
   }, []);
 
   useEffect(() => {
-    setupPermissionsAndCalendar();
-  }, [setupPermissionsAndCalendar]);
+      setupPermissionsAndCalendar();
+    }, [setupPermissionsAndCalendar]);
 
   const getCalendarEvents = useCallback(async () => {
     const { status } = await Calendar.getCalendarPermissionsAsync();
@@ -55,42 +55,77 @@ export const useCalendar = () => {
     });
   }, []);
 
-  const generatePlan = useCallback(async () => {
-    setIsLoadingPlan(true);
-    setPlan(null);
-    try {
-      const events = await getCalendarEvents();
-      const today = new Date();
-      const todayKey = today.toISOString().slice(0, 10);
-      const tomorrow = new Date();
-      tomorrow.setDate(today.getDate() + 1);
-      const tomorrowKey = tomorrow.toISOString().slice(0, 10);
 
-      const allEventsForCalendar = {};
-      events.forEach(event => {
-          const eventDateKey = new Date(event.originalEvent.startDate).toISOString().slice(0, 10);
-          if (!allEventsForCalendar[eventDateKey]) allEventsForCalendar[eventDateKey] = [];
-          allEventsForCalendar[eventDateKey].push(event);
-      });
+    const getSuggestionFromServer = async () => {
+        try {
+          // PAMIĘTAJ, ABY WSTAWIC TUTAJ SWÓJ ADRES Z VERCEL
+          const MY_BACKEND_URL = 'https://asystent-finalny-krzysztof-samborowskis-projects.vercel.app/api/getSuggestion';
 
-      setPlan({
-          today: allEventsForCalendar[todayKey] || [],
-          tomorrow: allEventsForCalendar[tomorrowKey] || [],
-          allForCalendar: allEventsForCalendar,
-          todayKey: todayKey,
-          tomorrowKey: tomorrowKey,
-      });
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Błąd", "Nie udało się załadować wydarzeń z kalendarza.");
-    } finally {
-      setIsLoadingPlan(false);
-    }
-  }, [getCalendarEvents]);
+          console.log('Łączę się z adresem:', MY_BACKEND_URL);
 
-  useEffect(() => {
-      generatePlan();
-  }, [generatePlan]);
+          const response = await fetch(MY_BACKEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mood: selectedMood })
+          });
+
+          if (!response.ok) {
+                      // Dodajemy logowanie treści błędu, jeśli serwer go zwróci
+                      const errorBody = await response.text();
+                      console.error('Błąd odpowiedzi serwera:', errorBody);
+                      throw new Error('Błąd odpowiedzi od naszego serwera');
+                  }
+
+          const data = await response.json();
+          return data.suggestion;
+        } catch (error) {
+          console.error("Błąd połączenia z backendem:", error);
+          return "Nie udało się pobrać sugestii, sprawdź połączenie z internetem.";
+        }
+    };
+
+    const generatePlan = useCallback(async () => {
+      setIsLoadingPlan(true);
+      setPlan(null);
+      try {
+        // Wywołujemy obie funkcje równocześnie, aby było szybciej
+        const [events, introText] = await Promise.all([
+            getCalendarEvents(),
+            getSuggestionFromServer() // Używamy naszej nowej, bezpiecznej funkcji
+        ]);
+
+        const today = new Date();
+        const todayKey = today.toISOString().slice(0, 10);
+        const tomorrow = new Date();
+        tomorrow.setDate(today.getDate() + 1);
+        const tomorrowKey = tomorrow.toISOString().slice(0, 10);
+
+        const allEventsForCalendar = {};
+        events.forEach(event => {
+            const eventDateKey = new Date(event.originalEvent.startDate).toISOString().slice(0, 10);
+            if (!allEventsForCalendar[eventDateKey]) allEventsForCalendar[eventDateKey] = [];
+            allEventsForCalendar[eventDateKey].push(event);
+        });
+
+        setPlan({
+            intro: introText, // Używamy odpowiedzi z backendu
+            today: allEventsForCalendar[todayKey] || [],
+            tomorrow: allEventsForCalendar[tomorrowKey] || [],
+            allForCalendar: allEventsForCalendar,
+            todayKey: todayKey,
+            tomorrowKey: tomorrowKey,
+        });
+      } catch (error) {
+        console.error(error);
+        Alert.alert("Błąd", "Nie udało się załadować wydarzeń z kalendarza.");
+      } finally {
+        setIsLoadingPlan(false);
+      }
+    }, [getCalendarEvents, selectedMood]); // Dodajemy selectedMood do zależności
+
+    useEffect(() => {
+        generatePlan();
+    }, [generatePlan]);
 
   const saveEvent = async (eventData, eventId) => {
     if (!defaultCalendarId) {
