@@ -29,7 +29,8 @@ export const TimelineWidget = ({ title, tasks, dayKey, onEventPress, onAddPress,
                         }
                     }
                     return (
-                        <View key={task.id}>
+                        // POPRAWKA: Klucz jest teraz na najwyższym elemencie w pętli.
+                        <View key={task.id || `${dayKey}-${index}`}>
                             <TouchableOpacity onPress={() => onEventPress(task, dayKey)} style={styles.timelineItem}>
                                 <View style={[styles.timelineDot, { backgroundColor: task.color, borderColor: isToday ? '#F4C2C4' : '#1C1C1E'}]} />
                                 <View style={{ marginLeft: 24 }}>

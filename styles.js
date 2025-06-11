@@ -3,17 +3,7 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000' },
     centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    // ZMIANA: Modyfikujemy padding, aby zrobić miejsce
-    scrollContent: { padding: 16, paddingTop: 60 },
-    // ZMIANA: Modyfikujemy nagłówek
-    header: {
-        fontFamily: 'JosefinSans_700Bold',
-        fontSize: 32,
-        color: '#EAEAEA',
-        textAlign: 'center',
-        marginBottom: 20,
-        paddingTop: 20 // Dodajemy padding, aby odsunąć od góry
-    },
+    scrollContent: { padding: 16, paddingTop: 80 },
     widget: { borderRadius: 28, padding: 20, marginBottom: 16 },
     darkWidget: { backgroundColor: '#1C1C1E' },
     pinkWidget: { backgroundColor: '#F4C2C4' },
@@ -24,8 +14,7 @@ export const styles = StyleSheet.create({
     timeSeparatorWidget: { fontFamily: 'JosefinSans_700Bold', fontSize: 40, color: 'black', marginHorizontal: 8 },
     buttonBlack: { backgroundColor: 'black', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 16 },
     buttonBlackText: { color: 'white', fontFamily: 'JosefinSans_600SemiBold', fontSize: 16 },
-    // ZMIANA: Modyfikujemy pozycję zegara
-    topRightClock: { position: 'absolute', top: 50, right: 24, zIndex: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20 },
+    topRightClock: { position: 'absolute', top: 40, right: 24, zIndex: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20 },
     topRightClockIcon: { fontSize: 20, marginRight: 8, color: 'white' },
     topRightClockText: { color: 'white', fontFamily: 'JosefinSans_600SemiBold', fontSize: 16 },
     dateWidgetDay: { color: 'white', fontFamily: 'JosefinSans_700Bold', fontSize: 24, letterSpacing: 1 },
@@ -33,11 +22,11 @@ export const styles = StyleSheet.create({
     timeline: { paddingLeft: 16, borderLeftWidth: 2 },
     timelineItem: { paddingLeft: 24, marginBottom: 16 },
     timelineDot: { position: 'absolute', left: -9, top: 5, width: 16, height: 16, borderRadius: 8 },
-    timelineTitle: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 15, color: 'white' },
-    timelineTime: { fontFamily: 'JosefinSans_400Regular', fontSize: 13, color: '#9CA3AF' },
+    timelineTitle: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 15 },
+    timelineTime: { fontFamily: 'JosefinSans_400Regular', fontSize: 13 },
     emptyTimelineText: { fontFamily: 'JosefinSans_400Regular', fontSize: 14, textAlign: 'center', padding: 16, opacity: 0.8 },
     freeTimeSlot: { paddingLeft: 24, marginBottom: 16 },
-    addEventText: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 13, color: 'rgba(255,255,255,0.5)'},
+    addEventText: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 13 },
     addButton: { height: 32, width: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
     calendarHeader: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
     calendarDayName: { color: '#9CA3AF', fontFamily: 'JosefinSans_700Bold', fontSize: 12, letterSpacing: 1 },
@@ -48,6 +37,7 @@ export const styles = StyleSheet.create({
     calendarDaySelected: { backgroundColor: 'rgba(255, 255, 255, 0.7)' },
     dotsContainer: { flexDirection: 'row', gap: 2, marginTop: 2 },
     eventDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#F2A413' },
+    centeredView: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.7)" },
     majordomoModalView: { margin: 20, backgroundColor: "#1C1C1E", borderRadius: 28, padding: 24, alignItems: "center", width: '90%' },
     majordomoTitle: { fontFamily: 'JosefinSans_700Bold', fontSize: 22, color: 'white', textAlign: 'center' },
     majordomoSubtitle: { fontFamily: 'JosefinSans_400Regular', color: '#9CA3AF', textAlign: 'center', marginTop: 8, marginBottom: 24 },
@@ -68,4 +58,10 @@ export const styles = StyleSheet.create({
     cancelButton: { backgroundColor: '#4b5563', flex: 1, marginRight: 8, paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
     cancelButtonText: { color: '#EAEAEA', fontFamily: 'JosefinSans_600SemiBold', fontSize: 16 },
     saveButton: { backgroundColor: 'white', flex: 1, marginLeft: 8, paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
+     preparationTask: { color: 'white', fontFamily: 'JosefinSans_400Regular', marginLeft: 8, marginVertical: 4 },
+        checkboxContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+        checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: '#9CA3AF', marginRight: 12, justifyContent: 'center', alignItems: 'center' },
+        checkboxChecked: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+        checkboxCheck: { color: 'white', fontWeight: 'bold' },
+        checkboxLabel: { color: 'white', flex: 1 }
 });

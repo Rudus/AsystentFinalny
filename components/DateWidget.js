@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'; // POPRAWKA: Usunięto nieużywane importy
 import { View, Text } from 'react-native';
 import { styles } from '../styles.js';
 

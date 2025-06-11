@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // POPRAWKA: Dodano import React i useCallback
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
@@ -15,7 +15,7 @@ export const usePersona = () => {
       if (savedPersona !== null) {
         setPersona(JSON.parse(savedPersona));
       } else {
-        setPersona({}); // Ustaw pusty obiekt, jeśli nic nie ma w pamięci
+        setPersona({});
       }
     } catch (e) {
       console.error('Nie udało się załadować persony.', e);
@@ -34,12 +34,11 @@ export const usePersona = () => {
     }
   };
 
-  // NOWA FUNKCJA
   const clearPersona = async () => {
       try {
           await AsyncStorage.removeItem(PERSONA_KEY);
-          setPersona({}); // Resetujemy stan w aplikacji
-          Alert.alert("Sukces", "Persona została wyczyszczona. Uruchom ponownie aplikację, aby zobaczyć nowe sugestie.");
+          setPersona({});
+          Alert.alert("Sukces", "Persona została wyczyszczona.");
       } catch(e) {
           console.error('Nie udało się wyczyścić persony.', e);
           Alert.alert("Błąd", "Wystąpił błąd podczas czyszczenia persony.");

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, UIManager, LayoutAnimation, AppState, Alert } from 'react-native';
+import { SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform, UIManager, LayoutAnimation, AppState } from 'react-native';
 import { useFonts, JosefinSans_400Regular, JosefinSans_600SemiBold, JosefinSans_700Bold } from '@expo-google-fonts/josefin-sans';
 
 import { styles } from '../styles.js';
@@ -9,6 +9,7 @@ import { TimelineWidget } from '../components/TimelineWidget';
 import { CalendarWidget } from '../components/CalendarWidget';
 import { MajordomoModal } from '../components/MajordomoModal';
 import { EditEventModal } from '../components/EditEventModal';
+import { PreparationModal } from '../components/PreparationModal';
 import { useCalendar } from '../hooks/useCalendar';
 import { useSettings } from '../hooks/useSettings';
 import { usePersona } from '../hooks/usePersona';
@@ -25,26 +26,23 @@ export default function AppScreen() {
   });
 
   const { settings, isLoading: isLoadingSettings, saveSettings } = useSettings();
-  const { persona, updatePersona, clearPersona } = usePersona();
   const { plan, isLoadingPlan, generatePlan, saveEvent } = useCalendar();
+  const { persona, updatePersona } = usePersona();
 
   const [isMajordomoVisible, setIsMajordomoVisible] = useState(true);
+  const [isPreparationModalVisible, setIsPreparationModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [eventToEdit, setEventToEdit] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') { generatePlan(); }
+      if (nextAppState === 'active') {
+        generatePlan();
+      }
     });
     return () => { subscription.remove(); };
   }, [generatePlan]);
-
-  const handleClearPersona = () => {
-      Alert.alert("Tryb Deweloperski", "Czy na pewno chcesz wyczyścić zapamiętaną personę użytkownika?",
-          [{ text: "Anuluj", style: "cancel" }, { text: "Wyczyść", onPress: () => clearPersona(), style: "destructive" }]
-      );
-  };
 
   const handleSetAlarm = (time) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -82,9 +80,14 @@ export default function AppScreen() {
       }
   };
 
-
-  if (!fontsLoaded || isLoadingSettings) {
-    return <View style={styles.centeredView}><ActivityIndicator size="large" color="#fff" /></View>;
+  // POPRAWKA: Ulepszona logika ładowania i obsługi błędów
+  if (!fontsLoaded || isLoadingSettings || isLoadingPlan || !plan) {
+    return (
+        <View style={styles.centeredView}>
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={{color: 'white', marginTop: 10, fontFamily: 'JosefinSans_400Regular'}}>Ładowanie asystenta...</Text>
+        </View>
+    );
   }
 
   return (
@@ -97,27 +100,70 @@ export default function AppScreen() {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity onLongPress={handleClearPersona} activeOpacity={0.7}>
-            <Text style={styles.header}>Majordomo</Text>
+        <Text style={styles.header}>Majordomo</Text>
+        <TimeSetterWidget
+          isVisible={settings.isTimeSetterVisible}
+          initialHour={settings.hour}
+          initialMinute={settings.minute}
+          onSave={handleSetAlarm}
+        />
+        <DateWidget />
+
+        <TouchableOpacity style={styles.preparationButton} onPress={() => setIsPreparationModalVisible(true)}>
+            <Text style={styles.preparationButtonText}>Zaplanuj Przygotowania 🧐</Text>
         </TouchableOpacity>
 
-        <TimeSetterWidget isVisible={settings.isTimeSetterVisible} initialHour={settings.hour} initialMinute={settings.minute} onSave={handleSetAlarm}/>
-        <DateWidget />
-        <TimelineWidget title="HARMONOGRAM NA DZIŚ" tasks={plan ? plan.today : []} dayKey={plan ? plan.todayKey : ''} onEventPress={(event, day) => openModal('edit', {event, day})} onAddPress={(startTime, day) => openModal('add', {startTime, day})} isToday />
-        <TimelineWidget title="PLAN NA JUTRO" tasks={plan ? plan.tomorrow : []}  dayKey={plan ? plan.tomorrowKey : ''} onEventPress={(event, day) => openModal('edit', {event, day})} onAddPress={(startTime, day) => openModal('add', {startTime, day})} />
-        {selectedDate && ( <TimelineWidget title={`PLAN NA: ${selectedDate.formatted}`} tasks={plan ? (plan.allForCalendar[selectedDate.dateKey] || []) : []} dayKey={selectedDate.dateKey} onEventPress={(event, day) => openModal('edit', {event, day})} onAddPress={(startTime, day) => openModal('add', {startTime, day})}/> )}
-        <CalendarWidget events={plan ? plan.allForCalendar : {}} onDateSelect={handleDateSelect} selectedDateKey={selectedDate ? selectedDate.dateKey : null} />
+        <TimelineWidget
+          title="HARMONOGRAM NA DZIŚ"
+          tasks={plan.today}
+          dayKey={plan.todayKey}
+          onEventPress={(event, day) => openModal('edit', { event, day })}
+          onAddPress={(startTime, day) => openModal('add', { startTime, day })}
+          isToday
+        />
+        <TimelineWidget
+          title="PLAN NA JUTRO"
+          tasks={plan.tomorrow}
+          dayKey={plan.tomorrowKey}
+          onEventPress={(event, day) => openModal('edit', { event, day })}
+          onAddPress={(startTime, day) => openModal('add', { startTime, day })}
+        />
+        {selectedDate && (
+             <TimelineWidget
+                title={`PLAN NA: ${selectedDate.formatted}`}
+                tasks={plan.allForCalendar[selectedDate.dateKey] || []}
+                dayKey={selectedDate.dateKey}
+                onEventPress={(event, day) => openModal('edit', {event, day})}
+                onAddPress={(startTime, day) => openModal('add', {startTime, day})}
+            />
+        )}
+        <CalendarWidget
+            events={plan.allForCalendar}
+            onDateSelect={handleDateSelect}
+            selectedDateKey={selectedDate ? selectedDate.dateKey : null}
+        />
       </ScrollView>
 
       <MajordomoModal
         isVisible={isMajordomoVisible}
         onClose={() => setIsMajordomoVisible(false)}
-        onPlanRequest={(title) => openModal('add', {title, day: plan ? plan.todayKey : ''})}
+        onPlanRequest={(title) => openModal('add', { title, day: plan.todayKey })}
         persona={persona}
         updatePersona={updatePersona}
       />
-
-      {eventToEdit && (<EditEventModal isVisible={isEditModalVisible} data={eventToEdit} onClose={() => setIsEditModalVisible(false)} onSave={handleSaveEvent} />)}
+      <PreparationModal
+        isVisible={isPreparationModalVisible}
+        onClose={() => setIsPreparationModalVisible(false)}
+        upcomingEvents={plan.upcomingTwoWeeks || []}
+      />
+      {eventToEdit && (
+          <EditEventModal
+            isVisible={isEditModalVisible}
+            data={eventToEdit}
+            onClose={() => setIsEditModalVisible(false)}
+            onSave={handleSaveEvent}
+          />
+      )}
     </SafeAreaView>
   );
 }
