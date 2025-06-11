@@ -3,7 +3,17 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000' },
     centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 16, paddingTop: 80 },
+    // ZMIANA: Modyfikujemy padding, aby zrobić miejsce
+    scrollContent: { padding: 16, paddingTop: 60 },
+    // ZMIANA: Modyfikujemy nagłówek
+    header: {
+        fontFamily: 'JosefinSans_700Bold',
+        fontSize: 32,
+        color: '#EAEAEA',
+        textAlign: 'center',
+        marginBottom: 20,
+        paddingTop: 20 // Dodajemy padding, aby odsunąć od góry
+    },
     widget: { borderRadius: 28, padding: 20, marginBottom: 16 },
     darkWidget: { backgroundColor: '#1C1C1E' },
     pinkWidget: { backgroundColor: '#F4C2C4' },
@@ -14,7 +24,8 @@ export const styles = StyleSheet.create({
     timeSeparatorWidget: { fontFamily: 'JosefinSans_700Bold', fontSize: 40, color: 'black', marginHorizontal: 8 },
     buttonBlack: { backgroundColor: 'black', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 16 },
     buttonBlackText: { color: 'white', fontFamily: 'JosefinSans_600SemiBold', fontSize: 16 },
-    topRightClock: { position: 'absolute', top: 40, right: 24, zIndex: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20 },
+    // ZMIANA: Modyfikujemy pozycję zegara
+    topRightClock: { position: 'absolute', top: 50, right: 24, zIndex: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20 },
     topRightClockIcon: { fontSize: 20, marginRight: 8, color: 'white' },
     topRightClockText: { color: 'white', fontFamily: 'JosefinSans_600SemiBold', fontSize: 16 },
     dateWidgetDay: { color: 'white', fontFamily: 'JosefinSans_700Bold', fontSize: 24, letterSpacing: 1 },
@@ -22,8 +33,8 @@ export const styles = StyleSheet.create({
     timeline: { paddingLeft: 16, borderLeftWidth: 2 },
     timelineItem: { paddingLeft: 24, marginBottom: 16 },
     timelineDot: { position: 'absolute', left: -9, top: 5, width: 16, height: 16, borderRadius: 8 },
-    timelineTitle: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 15 },
-    timelineTime: { fontFamily: 'JosefinSans_400Regular', fontSize: 13 },
+    timelineTitle: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 15, color: 'white' },
+    timelineTime: { fontFamily: 'JosefinSans_400Regular', fontSize: 13, color: '#9CA3AF' },
     emptyTimelineText: { fontFamily: 'JosefinSans_400Regular', fontSize: 14, textAlign: 'center', padding: 16, opacity: 0.8 },
     freeTimeSlot: { paddingLeft: 24, marginBottom: 16 },
     addEventText: { fontFamily: 'JosefinSans_600SemiBold', fontSize: 13, color: 'rgba(255,255,255,0.5)'},

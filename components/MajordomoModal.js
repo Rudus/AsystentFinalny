@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { styles } from '../styles.js';
-// POPRAWKA: Używamy nazwanego importu
 import { allSuggestions } from '../data/suggestions.js';
 
 export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, updatePersona }) => {
@@ -17,7 +16,7 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
           }
           return true;
       });
-  }, [persona, allSuggestions]);
+  }, [persona]);
 
   useEffect(() => {
     if (isVisible) {
@@ -50,11 +49,7 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
   };
 
   const handleSchedule = (time) => {
-      if (time === 'custom') {
-          onPlanRequest(eventToSchedule.title);
-      } else {
-          onPlanRequest(eventToSchedule.title);
-      }
+      onPlanRequest(eventToSchedule.title); // Przekazujemy tylko tytuł do zaplanowania
       onClose();
   };
 
@@ -62,7 +57,7 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
     <>
       <Text style={styles.majordomoTitle}>Sugestie Asystenta 🤵‍♂️</Text>
       <Text style={styles.majordomoSubtitle}>Pamiętajmy o kilku ważnych sprawach.</Text>
-      {currentSuggestions.map((item, index) => (
+      {currentSuggestions.length > 0 ? currentSuggestions.map((item, index) => (
         <View key={index} style={styles.suggestionCard}>
           <Text style={{fontSize: 40}}>{item.icon}</Text>
           <View style={{flex: 1, marginHorizontal: 16}}>
@@ -70,11 +65,11 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
             <Text style={styles.suggestionDesc}>{item.description}</Text>
           </View>
           <View>
-            <TouchableOpacity onPress={() => handleAccept(item)} style={[styles.suggestionButton, {backgroundColor: '#16a34a'}]}><Text>✓</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDismiss(item)} style={[styles.suggestionButton, {backgroundColor: '#ef4444', marginTop: 8}]}><Text>×</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleAccept(item)} style={[styles.suggestionButton, {backgroundColor: '#16a34a'}]}><Text style={styles.suggestionButtonText}>✓</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDismiss(item)} style={[styles.suggestionButton, {backgroundColor: '#ef4444', marginTop: 8}]}><Text style={styles.suggestionButtonText}>×</Text></TouchableOpacity>
           </View>
         </View>
-      ))}
+      )) : <Text style={styles.majordomoSubtitle}>Na dziś to wszystko. Miłego dnia!</Text>}
       <TouchableOpacity onPress={onClose} style={styles.closeMajordomoButton}>
         <Text style={{color: 'white', fontWeight: 'bold'}}>Pokaż mój plan dnia</Text>
       </TouchableOpacity>
@@ -86,8 +81,8 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
         <Text style={styles.majordomoTitle}>Szybkie pytanie...</Text>
         <Text style={styles.majordomoSubtitle}>{currentQuestion?.text}</Text>
         <View style={{flexDirection: 'row', gap: 16, width: '100%'}}>
-            <TouchableOpacity onPress={() => handleQuestionAnswer('yes')} style={[styles.closeMajordomoButton, {flex: 1, backgroundColor: '#16a34a'}]}><Text style={{color: 'white'}}>Tak</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => handleQuestionAnswer('no')} style={[styles.closeMajordomoButton, {flex: 1, backgroundColor: '#ef4444'}]}><Text style={{color: 'white'}}>Nie</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleQuestionAnswer('yes')} style={[styles.closeMajordomoButton, {flex: 1, backgroundColor: '#16a34a'}]}><Text style={{color: 'white', fontWeight: 'bold'}}>Tak</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleQuestionAnswer('no')} style={[styles.closeMajordomoButton, {flex: 1, backgroundColor: '#ef4444'}]}><Text style={{color: 'white', fontWeight: 'bold'}}>Nie</Text></TouchableOpacity>
         </View>
       </>
   );
@@ -100,9 +95,9 @@ export const MajordomoModal = ({ isVisible, onClose, onPlanRequest, persona, upd
         <>
             <Text style={styles.majordomoTitle}>Zaplanuj: {eventToSchedule?.title}</Text>
             <Text style={styles.majordomoSubtitle}>Znalazłem kilka wolnych terminów. Który Ci pasuje?</Text>
-            <TouchableOpacity onPress={() => handleSchedule(suggestion1)} style={styles.closeMajordomoButton}><Text style={{color: 'white'}}>{suggestion1}</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => handleSchedule(suggestion2)} style={styles.closeMajordomoButton}><Text style={{color: 'white'}}>{suggestion2}</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => handleSchedule('custom')} style={[styles.closeMajordomoButton, {backgroundColor: 'transparent', borderWidth: 1, borderColor: '#374151'}]}><Text style={{color: 'white'}}>Wybierz własny termin</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleSchedule(suggestion1)} style={styles.closeMajordomoButton}><Text style={{color: 'white', fontWeight: 'bold'}}>{suggestion1}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleSchedule(suggestion2)} style={styles.closeMajordomoButton}><Text style={{color: 'white', fontWeight: 'bold'}}>{suggestion2}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleSchedule('custom')} style={[styles.closeMajordomoButton, {backgroundColor: 'transparent', borderWidth: 1, borderColor: '#374151'}]}><Text style={{color: 'white', fontWeight: 'bold'}}>Wybierz własny termin</Text></TouchableOpacity>
         </>
     );
   }

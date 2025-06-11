@@ -57,75 +57,75 @@ export const useCalendar = (selectedMood = 'Produktywny') => { // Dodajemy selec
 
 
     const getSuggestionFromServer = async () => {
-        try {
-          // PAMIĘTAJ, ABY WSTAWIC TUTAJ SWÓJ ADRES Z VERCEL
           const MY_BACKEND_URL = 'https://asystent-finalny-krzysztof-samborowskis-projects.vercel.app/api/getSuggestion';
-
           console.log('Łączę się z adresem:', MY_BACKEND_URL);
 
-          const response = await fetch(MY_BACKEND_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mood: selectedMood })
-          });
+          try {
+            const response = await fetch(MY_BACKEND_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ persona: {} }) // Na razie wysyłamy pustą personę
+            });
 
-          if (!response.ok) {
-                      // Dodajemy logowanie treści błędu, jeśli serwer go zwróci
-                      const errorBody = await response.text();
-                      console.error('Błąd odpowiedzi serwera:', errorBody);
-                      throw new Error('Błąd odpowiedzi od naszego serwera');
-                  }
+            // KROK 1: Sprawdzamy, czy odpowiedź jest poprawna
+            if (!response.ok) {
+                // KROK 2: Jeśli nie, odczytujemy ją jako TEKST, a nie JSON
+                const errorText = await response.text();
+                console.error(`Błąd HTTP! Status: ${response.status}. Treść odpowiedzi serwera:`, errorText);
+                throw new Error('Serwer odpowiedział błędem.');
+            }
 
-          const data = await response.json();
-          return data.suggestion;
-        } catch (error) {
-          console.error("Błąd połączenia z backendem:", error);
-          return "Nie udało się pobrać sugestii, sprawdź połączenie z internetem.";
-        }
-    };
+            // KROK 3: Dopiero jeśli wszystko jest OK, próbujemy odczytać JSON
+            const data = await response.json();
+            return data.suggestion;
+
+          } catch (error) {
+            console.error("Błąd w funkcji fetch:", error);
+            return "Nie udało się pobrać sugestii z serwera.";
+          }
+      };
 
     const generatePlan = useCallback(async () => {
-      setIsLoadingPlan(true);
-      setPlan(null);
-      try {
-        // Wywołujemy obie funkcje równocześnie, aby było szybciej
-        const [events, introText] = await Promise.all([
-            getCalendarEvents(),
-            getSuggestionFromServer() // Używamy naszej nowej, bezpiecznej funkcji
-        ]);
+        setIsLoadingPlan(true);
+        setPlan(null);
+        try {
+          const [events, introText] = await Promise.all([
+              getCalendarEvents(),
+              getSuggestionFromServer()
+          ]);
 
-        const today = new Date();
-        const todayKey = today.toISOString().slice(0, 10);
-        const tomorrow = new Date();
-        tomorrow.setDate(today.getDate() + 1);
-        const tomorrowKey = tomorrow.toISOString().slice(0, 10);
+          const today = new Date();
+          const todayKey = today.toISOString().slice(0, 10);
+          const tomorrow = new Date();
+          tomorrow.setDate(today.getDate() + 1);
+          const tomorrowKey = tomorrow.toISOString().slice(0, 10);
 
-        const allEventsForCalendar = {};
-        events.forEach(event => {
-            const eventDateKey = new Date(event.originalEvent.startDate).toISOString().slice(0, 10);
-            if (!allEventsForCalendar[eventDateKey]) allEventsForCalendar[eventDateKey] = [];
-            allEventsForCalendar[eventDateKey].push(event);
-        });
+          const allEventsForCalendar = {};
+          events.forEach(event => {
+              const eventDateKey = new Date(event.originalEvent.startDate).toISOString().slice(0, 10);
+              if (!allEventsForCalendar[eventDateKey]) allEventsForCalendar[eventDateKey] = [];
+              allEventsForCalendar[eventDateKey].push(event);
+          });
 
-        setPlan({
-            intro: introText, // Używamy odpowiedzi z backendu
-            today: allEventsForCalendar[todayKey] || [],
-            tomorrow: allEventsForCalendar[tomorrowKey] || [],
-            allForCalendar: allEventsForCalendar,
-            todayKey: todayKey,
-            tomorrowKey: tomorrowKey,
-        });
-      } catch (error) {
-        console.error(error);
-        Alert.alert("Błąd", "Nie udało się załadować wydarzeń z kalendarza.");
-      } finally {
-        setIsLoadingPlan(false);
-      }
-    }, [getCalendarEvents, selectedMood]); // Dodajemy selectedMood do zależności
+          setPlan({
+              intro: introText,
+              today: allEventsForCalendar[todayKey] || [],
+              tomorrow: allEventsForCalendar[tomorrowKey] || [],
+              allForCalendar: allEventsForCalendar,
+              todayKey: todayKey,
+              tomorrowKey: tomorrowKey,
+          });
+        } catch (error) {
+          console.error(error);
+          Alert.alert("Błąd", "Nie udało się załadować planu.");
+        } finally {
+          setIsLoadingPlan(false);
+        }
+      }, [getCalendarEvents, selectedMood]);
 
-    useEffect(() => {
-        generatePlan();
-    }, [generatePlan]);
+      useEffect(() => {
+          generatePlan();
+      }, [generatePlan]);
 
   const saveEvent = async (eventData, eventId) => {
     if (!defaultCalendarId) {
