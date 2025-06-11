@@ -4,8 +4,12 @@ export default async function handler(request, response) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
   try {
-    // Krok 1: Odbierz dane z aplikacji
-    const { persona } = request.body;
+    // --- SONDA DIAGNOSTYCZNA ---
+    // Logujemy dokładnie to, co otrzymaliśmy od aplikacji.
+    console.log('Otrzymano request.body:', JSON.stringify(request.body, null, 2));
+
+    // Krok 1: Odbierz dane z aplikacji (z zabezpieczeniem)
+    const persona = request.body?.persona || {}; // Jeśli persona nie dotarła, użyj pustego obiektu
 
     // Krok 2: Filtruj sugestie na podstawie persony
     const filteredSuggestions = allSuggestions.filter(suggestion => {
